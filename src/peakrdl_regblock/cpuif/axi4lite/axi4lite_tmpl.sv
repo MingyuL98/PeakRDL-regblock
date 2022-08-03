@@ -8,6 +8,7 @@ logic axil_awvalid;
 logic [{{cpuif.addr_width-1}}:0] axil_awaddr;
 logic axil_wvalid;
 logic [{{cpuif.data_width-1}}:0] axil_wdata;
+logic [{{cpuif.data_width_bytes-1}}:0] axil_wstrb;
 logic axil_aw_accept;
 logic axil_resp_acked;
 
@@ -22,6 +23,7 @@ always_ff {{get_always_ff_event(cpuif.reset)}} begin
         axil_wvalid <= '0;
         axil_wdata <= '0;
         axil_n_in_flight <= '0;
+        axil_wstrb <= '0;
     end else begin
         // AR* acceptance register
         if(axil_ar_accept) begin
@@ -46,6 +48,7 @@ always_ff {{get_always_ff_event(cpuif.reset)}} begin
         if({{cpuif.signal("wvalid")}} && {{cpuif.signal("wready")}}) begin
             axil_wvalid <= '1;
             axil_wdata <= {{cpuif.signal("wdata")}};
+            axil_wstrb <= {{cpuif.signal("wstrb")}};
         end
 
         // Keep track of in-flight transactions
