@@ -26,11 +26,16 @@ class _OnWrite(NextStateConditional):
 
 
     def _wr_data(self, field: 'FieldNode') -> str:
+        if self.exp.cpuif.__class__.__name__ == 'AXI4Lite_Cpuif':
+             # To support write strobe in AXI4-Lite
+            decoded_wr_data = self.exp.field_logic.get_top_reg_identifier(field)
+        else:
+            decoded_wr_data = 'decoded_wr_data'
         if field.msb < field.lsb:
             # Field gets bitswapped since it is in [low:high] orientation
-            value = f"{{<<{{decoded_wr_data[{field.high}:{field.low}]}}}}"
+            value = f"{{<<{{{decoded_wr_data}[{field.high}:{field.low}]}}}}"
         else:
-            value = f"decoded_wr_data[{field.high}:{field.low}]"
+            value = f"{decoded_wr_data}[{field.high}:{field.low}]"
         return value
 
 class WriteOneSet(_OnWrite):

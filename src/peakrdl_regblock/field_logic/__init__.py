@@ -72,6 +72,17 @@ class FieldLogic:
         path = get_indexed_path(self.top_node, field)
         return f"field_storage.{path}.value"
 
+    def get_top_reg_identifier(self, field: 'FieldNode') -> str:
+        """
+        Returns the Verilog string that represents the register that
+        the referenced storage field belongs to
+        Used to support AXI4-Lite write strobe
+        """
+        assert field.implements_storage
+        node = field.parent
+        top_reg_name = node.inst_name
+        return f"decoded_reg_{top_reg_name}"
+
     def get_next_q_identifier(self, field: 'FieldNode') -> str:
         """
         Returns the Verilog string that represents the storage register element

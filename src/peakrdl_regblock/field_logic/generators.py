@@ -88,6 +88,9 @@ class FieldLogicGenerator(RDLForLoopGenerator):
         self.field_storage_template = self.field_logic.exp.jj_env.get_template(
             "field_logic/templates/field_storage.sv"
         )
+        self.write_strb_template = self.field_logic.exp.jj_env.get_template(
+            "field_logic/templates/write_strobe.sv"
+        )
         self.intr_fields = [] # type: List[FieldNode]
         self.halt_fields = [] # type: List[FieldNode]
 
@@ -95,6 +98,49 @@ class FieldLogicGenerator(RDLForLoopGenerator):
     def enter_Reg(self, node: 'RegNode') -> None:
         self.intr_fields = []
         self.halt_fields = []
+
+        # Deal with wstrb in AXI-Lite interface
+        if self.exp.cpuif.__class__.__name__ == 'AXI4Lite_Cpuif':
+            if node.has_sw_writable:
+            # Generate write-strobe logic blocks for registers that are partially/fully sw writable
+                current_bit = 0
+                str = ""
+                # Fields are sorted by ascending low bit
+                for field in node.fields():
+                    # Iterate and concatenate all fields within the regsiter
+                    if field.is_sw_writable:
+                        if field.low != current_bit:
+                            # Insert zeros if necessary
+                            # zeros should be added if the field is not specified or is configured as not writable 
+                            new_field = f"{field.low-current_bit}'b0"
+                        else:
+                            new_field = f"{self.exp.dereferencer.get_value(field)}"
+
+                        # See if it is the very first field
+                        if (current_bit == 0):
+                            str = f"{new_field}"
+                        else:
+                            str = f"{new_field}, {str}"
+
+                        current_bit = field.high + 1
+
+                bus_width = self.exp.cpuif.data_width
+                if current_bit < bus_width:
+                    # Insert 0s to the beginning, if necessary
+                    highest_bit = ((current_bit-1)//8 + 1) * 8  
+                    # find the nearest multiple of 8 as the highest bit
+                    # might save some register resource in this way
+                    str = f"{highest_bit-current_bit}'b0, {str}"  
+                else:
+                    highest_bit = bus_width               
+                
+                # Use the template to generate the sv code block
+                context = {
+                    'node': node,
+                    'width': highest_bit,
+                    'content': '{' + str + '}'  # Add concatenation operator
+                }
+                self.add_content(self.write_strb_template.render(context))
 
 
     def enter_Field(self, node: 'FieldNode') -> None:
